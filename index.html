@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geoportal • Bacia do Ribeirão Abóbora | WebGIS Interativo</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ==================== BARRA SUPERIOR (HEADER) ==================== -->
+  <header class="app-header">
+    <div class="header-left">
+      <!-- Grupo Institucional: UFG • LAPIG • GPC -->
+      <div class="institutional-badge-group">
+        <!-- Logo UFG -->
+        <div class="ufg-brand-badge" title="Universidade Federal de Goiás - UFG">
+          <img src="assets/ufg_logo_white.svg" alt="Logo UFG" class="ufg-logo-img" id="ufgHeaderLogo">
+          <div class="ufg-text-col">
+            <span class="ufg-initials">UFG</span>
+            <span class="ufg-fullname">Univ. Federal de Goiás</span>
+          </div>
+        </div>
+
+        <!-- Logo LAPIG -->
+        <div class="inst-brand-badge lapig-badge" title="LAPIG - Laboratório de Sensoriamento Remoto e Geoprocessamento (IESA/UFG)">
+          <img src="assets/lapig_logo_white.svg" alt="Logo LAPIG" class="lapig-logo-img" id="lapigHeaderLogo">
+        </div>
+
+        <!-- Logo GPC -->
+        <div class="inst-brand-badge gpc-badge" title="GPC/UFG - Grupo de Pesquisa Cerrado">
+          <img src="assets/GPC_logo.jpg" alt="Logo GPC/UFG" class="gpc-logo-img" id="gpcHeaderLogo">
+        </div>
+      </div>
+
+      <div class="header-divider-v"></div>
+      <div class="header-titles">
+        <h1 class="main-title">GEOPORTAL <span class="highlight">BACIA DO RIBEIRÃO ABÓBORA</span></h1>
+        <p class="sub-title">WebGIS Interativo de Monitoramento da Dinâmica de Uso e Cobertura da Terra em APPs (1985 – 2025)</p>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <!-- Busca rápida -->
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="searchInput" placeholder="Buscar córrego, classe de solo ou coord (lat, lon)..." autocomplete="off">
+        <button id="clearSearchBtn" class="clear-search-btn" title="Limpar busca"><i class="fa-solid fa-xmark"></i></button>
+        <div id="searchResults" class="search-results-dropdown"></div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Botões de Ação Rápida no Topo -->
+      <button class="hdr-btn" id="btnThemeToggle" title="Alternar entre Modo Claro e Modo Escuro">
+        <i class="fa-solid fa-sun" id="themeToggleIcon"></i> <span id="themeLabel">Modo Dia / Noite</span>
+      </button>
+
+      <button class="hdr-btn" id="btnZoomBacia" title="Aproximar para a extensão da Bacia">
+        <i class="fa-solid fa-expand"></i> <span>Extensão Bacia</span>
+      </button>
+
+      <button class="hdr-btn" id="btnToggleMeasure" title="Ferramentas de Medição (Distância e Área)">
+        <i class="fa-solid fa-ruler-combined"></i> <span>Medir</span>
+      </button>
+
+      <button class="hdr-btn" id="btnExportMap" title="Exportar / Capturar imagem do mapa">
+        <i class="fa-solid fa-camera"></i> <span>Exportar</span>
+      </button>
+
+      <button class="hdr-btn" id="btnFullscreen" title="Alternar Tela Cheia">
+        <i class="fa-solid fa-maximize"></i>
+      </button>
+
+      <button class="hdr-btn" id="btnHelp" title="Ajuda e Informações">
+        <i class="fa-solid fa-circle-question"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== CONTAINER PRINCIPAL ==================== -->
+  <div class="main-container">
+
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside class="app-sidebar" id="appSidebar">
+      
+      <!-- Navegação das Abas -->
+      <nav class="sidebar-nav">
+        <button class="tab-btn active" data-tab="tab-layers" title="Camadas & Legenda (Foco: APPs)">
+          <i class="fa-solid fa-seedling"></i>
+          <span>Camadas APP</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-bacia" title="Uso da Terra em Toda a Bacia">
+          <i class="fa-solid fa-earth-americas"></i>
+          <span>Bacia Completa</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-basemaps" title="Mapas de Fundo (3 opções)">
+          <i class="fa-solid fa-map"></i>
+          <span>Mapas de Fundo</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-stats" title="Estatísticas & Gráficos">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Estatísticas</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-table" title="Tabela de Atributos">
+          <i class="fa-solid fa-table-list"></i>
+          <span>Atributos</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-info" title="Metadados & Sobre">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>Sobre</span>
+        </button>
+      </nav>
+
+      <!-- Conteúdo das Abas -->
+      <div class="sidebar-content">
+
+        <!-- ABA 1: CAMADAS & LEGENDA -->
+        <section class="tab-pane active" id="tab-layers">
+          <div class="pane-header">
+            <h3><i class="fa-solid fa-layer-group"></i> Gerenciador de Camadas</h3>
+            <p>Controle de visibilidade, opacidade e simbologia oficial MapBiomas.</p>
+          </div>
+
+          <!-- Controle Rápido Temporal (Anos) -->
+          <div class="temporal-quickbar">
+            <span class="t-label"><i class="fa-solid fa-clock-rotate-left"></i> Ano de Análise:</span>
+            <div class="year-buttons">
+              <button class="year-btn" data-year="1985">1985</button>
+              <button class="year-btn" data-year="2012">2012</button>
+              <button class="year-btn active" data-year="2025">2025</button>
+              <button class="year-play-btn" id="btnPlayTimeline" title="Reproduzir dinâmica temporal">
+                <i class="fa-solid fa-play"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Seção: Camadas Temáticas (Uso de Cobertura) -->
+          <div class="layer-section">
+            <div class="section-title">
+              <i class="fa-solid fa-seedling"></i> Uso e Cobertura nas APPs
+            </div>
+
+            <!-- Camada 2025 -->
+            <div class="layer-card" data-layer-id="app_2025">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_app_2025" checked>
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Uso e Cobertura APP <strong>2025</strong></span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-year">2025</span>
+                  <button class="btn-layer-zoom" title="Aproximar da camada" data-target="app_2025"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade: <strong id="lbl_op_2025">85%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_2025" min="0" max="100" value="85">
+              </div>
+            </div>
+
+            <!-- Camada 2012 -->
+            <div class="layer-card" data-layer-id="app_2012">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_app_2012">
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Uso e Cobertura APP <strong>2012</strong></span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-year">2012</span>
+                  <button class="btn-layer-zoom" title="Aproximar da camada" data-target="app_2012"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade: <strong id="lbl_op_2012">85%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_2012" min="0" max="100" value="85">
+              </div>
+            </div>
+
+            <!-- Camada 1985 -->
+            <div class="layer-card" data-layer-id="app_1985">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_app_1985">
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Uso e Cobertura APP <strong>1985</strong></span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-year">1985</span>
+                  <button class="btn-layer-zoom" title="Aproximar da camada" data-target="app_1985"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade: <strong id="lbl_op_1985">85%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_1985" min="0" max="100" value="85">
+              </div>
+            </div>
+          </div>
+
+          <!-- Seção: Hidrografia e Bacia -->
+          <div class="layer-section">
+            <div class="section-title">
+              <i class="fa-solid fa-water"></i> Limites e Rede Hidrográfica
+            </div>
+
+            <!-- Delimitação das APPs (Borda) -->
+            <div class="layer-card" data-layer-id="delimitacao_app">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_delimitacao_app" checked>
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Delimitação das APPs (Borda)</span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-green">Borda Fina</span>
+                  <button class="btn-layer-zoom" title="Aproximar das APPs" data-target="delimitacao_app"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade da borda: <strong id="lbl_op_delimitacao_app">85%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_delimitacao_app" min="0" max="100" value="85">
+              </div>
+            </div>
+
+            <!-- Drenagem -->
+            <div class="layer-card" data-layer-id="drenagem">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_drenagem" checked>
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Rede de Drenagem (Ribeirão Abóbora)</span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-blue">113 trechos</span>
+                  <button class="btn-layer-zoom" title="Aproximar da drenagem" data-target="drenagem"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade: <strong id="lbl_op_drenagem">95%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_drenagem" min="0" max="100" value="95">
+              </div>
+              <div class="layer-sublegend">
+                <span class="sub-leg-item"><span class="line-swatch main-river"></span> Eixo Principal</span>
+                <span class="sub-leg-item"><span class="line-swatch sec-river"></span> Tributários</span>
+              </div>
+            </div>
+
+            <!-- Bacia Hidrográfica -->
+            <div class="layer-card" data-layer-id="bacia">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_bacia" checked>
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Limite da Bacia Hidrográfica</span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-gray">198,7 km²</span>
+                  <button class="btn-layer-zoom" title="Aproximar da bacia" data-target="bacia"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade do contorno: <strong id="lbl_op_bacia">70%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_bacia" min="0" max="100" value="70">
+              </div>
+            </div>
+          </div>
+
+          <!-- Legenda de Uso de cobertura -->
+          <div class="legend-container">
+            <div class="legend-header">
+              <h4><i class="fa-solid fa-layer-group"></i> Uso de cobertura</h4>
+              <div class="legend-header-actions">
+                <span class="legend-hint" id="legendFilterHint">Selecione 1 ou mais</span>
+                <button type="button" class="btn-clear-legend" id="btnClearLegendFilter" title="Limpar seleção e exibir todas as classes" style="display: none;">
+                  <i class="fa-solid fa-rotate-left"></i> Limpar
+                </button>
+              </div>
+            </div>
+            <div class="legend-items-list" id="legendItemsList">
+              <!-- Gerado dinamicamente via JS com as cores do MapBiomas -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ABA 2: USO DO SOLO EM TODA A BACIA (CONTEXTO MACROREGIONAL) -->
+        <section class="tab-pane" id="tab-bacia">
+          <div class="pane-header">
+            <h3><i class="fa-solid fa-earth-americas"></i> Uso do Solo em Toda a Bacia</h3>
+            <p>Visualização do mosaico territorial completo da Bacia do Ribeirão Abóbora.</p>
+          </div>
+
+          <div class="context-notice-card">
+            <i class="fa-solid fa-circle-info"></i>
+            <div>
+              <strong>Contexto Macrorregional Complementar:</strong>
+              <p>Estas camadas abrangem toda a extensão territorial da bacia (~198,7 km²). <em>O foco prioritário da pesquisa e diagnóstico são as APPs marginais.</em></p>
+            </div>
+          </div>
+
+          <!-- Controle Rápido Temporal da Bacia -->
+          <div class="temporal-quickbar">
+            <span class="t-label"><i class="fa-solid fa-clock-rotate-left"></i> Ano na Bacia:</span>
+            <div class="year-buttons">
+              <button class="bacia-year-btn" data-year="1985">1985</button>
+              <button class="bacia-year-btn" data-year="2012">2012</button>
+              <button class="bacia-year-btn active" data-year="2025">2025</button>
+            </div>
+          </div>
+
+          <div class="layer-section">
+            <div class="section-title">
+              <i class="fa-solid fa-layer-group"></i> Cobertura Integral da Bacia
+            </div>
+
+            <!-- Camada Bacia 2025 -->
+            <div class="layer-card" data-layer-id="bacia_uso_2025">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_bacia_uso_2025">
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Uso do Solo na Bacia <strong>2025</strong></span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-year">2025</span>
+                  <button class="btn-layer-zoom" title="Aproximar da camada" data-target="bacia_uso_2025"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade: <strong id="lbl_op_bacia_uso_2025">70%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_bacia_uso_2025" min="0" max="100" value="70">
+              </div>
+            </div>
+
+            <!-- Camada Bacia 2012 -->
+            <div class="layer-card" data-layer-id="bacia_uso_2012">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_bacia_uso_2012">
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Uso do Solo na Bacia <strong>2012</strong></span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-year">2012</span>
+                  <button class="btn-layer-zoom" title="Aproximar da camada" data-target="bacia_uso_2012"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade: <strong id="lbl_op_bacia_uso_2012">70%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_bacia_uso_2012" min="0" max="100" value="70">
+              </div>
+            </div>
+
+            <!-- Camada Bacia 1985 -->
+            <div class="layer-card" data-layer-id="bacia_uso_1985">
+              <div class="layer-card-hdr">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="chk_bacia_uso_1985">
+                  <span class="checkmark"></span>
+                  <span class="layer-name">Uso do Solo na Bacia <strong>1985</strong></span>
+                </label>
+                <div class="layer-actions">
+                  <span class="badge badge-year">1985</span>
+                  <button class="btn-layer-zoom" title="Aproximar da camada" data-target="bacia_uso_1985"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+              </div>
+              <div class="layer-controls">
+                <span class="opacity-label">Opacidade: <strong id="lbl_op_bacia_uso_1985">70%</strong></span>
+                <input type="range" class="opacity-slider" id="slider_op_bacia_uso_1985" min="0" max="100" value="70">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ABA 3: 3 MAPAS DE FUNDO (BASEMAPS SELECIONADOS) -->
+        <section class="tab-pane" id="tab-basemaps">
+          <div class="pane-header">
+            <h3><i class="fa-solid fa-map"></i> Mapas de Fundo (Basemaps)</h3>
+            <p>Selecione uma das 3 bases cartográficas oficiais:</p>
+          </div>
+
+          <div class="basemaps-grid" id="basemapsGrid">
+            <!-- Card 1: Google Híbrido -->
+            <div class="basemap-card active" data-basemap="google_hybrid">
+              <div class="bm-preview bm-google-hybrid">
+                <span class="bm-tag">Satélite + Vias</span>
+              </div>
+              <div class="bm-info">
+                <h4>1. Google Híbrido</h4>
+                <p>Imagens de satélite de alta definição com malha viária e toponímia.</p>
+              </div>
+              <div class="bm-check"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+
+            <!-- Card 2: Esri World Imagery -->
+            <div class="basemap-card" data-basemap="esri_satellite">
+              <div class="bm-preview bm-esri-sat">
+                <span class="bm-tag">Alta Resolução</span>
+              </div>
+              <div class="bm-info">
+                <h4>2. Esri Imagem de Satélite</h4>
+                <p>Fotografia orbital pura em altíssima resolução ótica.</p>
+              </div>
+              <div class="bm-check"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+
+            <!-- Card 3: Esri World Topographic (Anteriormente 6) -->
+            <div class="basemap-card" data-basemap="esri_topo">
+              <div class="bm-preview bm-esri-topo">
+                <span class="bm-tag">Relevo / Curvas</span>
+              </div>
+              <div class="bm-info">
+                <h4>3. Esri Topográfico</h4>
+                <p>Relevo sombreado, hidrografia e curvas de nível altimétricas.</p>
+              </div>
+              <div class="bm-check"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ABA 3: ESTATÍSTICAS & GRÁFICOS -->
+        <section class="tab-pane" id="tab-stats">
+          <div class="pane-header">
+            <h3><i class="fa-solid fa-chart-column"></i> Dinâmica Temporal do Solo</h3>
+            <p>Evolução da área ocupada por classe nas APPs (1985 – 2025).</p>
+          </div>
+
+          <!-- Cards de Resumo Rápido -->
+          <div class="stats-cards-row">
+            <div class="stat-card">
+              <span class="stat-lbl">Área da Bacia</span>
+              <strong class="stat-val">198,7 <small>km²</small></strong>
+              <span class="stat-sub">19.870 ha</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-lbl">Área Total de APP</span>
+              <strong class="stat-val">8,18 <small>km²</small></strong>
+              <span class="stat-sub">~818 hectares</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-lbl">Rede de Canais</span>
+              <strong class="stat-val">113 <small>trechos</small></strong>
+              <span class="stat-sub">Eixo + Afluentes</span>
+            </div>
+          </div>
+
+          <!-- Seletor do Gráfico -->
+          <div class="stats-controls">
+            <label for="chartTypeSelect">Tipo de Gráfico:</label>
+            <select id="chartTypeSelect" class="form-select">
+              <option value="bar">Comparação Histórica (1985 x 2012 x 2025)</option>
+              <option value="doughnut_2025">Distribuição Percentual 2025</option>
+              <option value="doughnut_2012">Distribuição Percentual 2012</option>
+              <option value="doughnut_1985">Distribuição Percentual 1985</option>
+            </select>
+          </div>
+
+          <!-- Container do Chart.js -->
+          <div class="chart-box">
+            <canvas id="temporalChart"></canvas>
+          </div>
+
+          <!-- Tabela de Variação de Cobertura -->
+          <div class="stats-table-wrapper">
+            <h4>Balanço da Vegetação e Usos (1985 → 2025)</h4>
+            <table class="summary-table" id="summaryTable">
+              <thead>
+                <tr>
+                  <th>Classe</th>
+                  <th>1985 (ha)</th>
+                  <th>2025 (ha)</th>
+                  <th>Variação</th>
+                </tr>
+              </thead>
+              <tbody id="summaryTableBody">
+                <!-- Gerado via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ABA 5: TABELA DE ATRIBUTOS -->
+        <section class="tab-pane" id="tab-table">
+          <div class="pane-header">
+            <h3><i class="fa-solid fa-table"></i> Tabela de Atributos</h3>
+            <p>Selecione uma camada para inspecionar feições e dados tabulares.</p>
+          </div>
+
+          <div class="table-controls">
+            <select id="tableLayerSelect" class="form-select">
+              <optgroup label="Áreas de Preservação Permanente (APPs - Foco)">
+                <option value="app_2025">Uso do Solo APP 2025</option>
+                <option value="app_2012">Uso do Solo APP 2012</option>
+                <option value="app_1985">Uso do Solo APP 1985</option>
+                <option value="delimitacao_app">Delimitação das APPs (Borda)</option>
+              </optgroup>
+              <optgroup label="Toda a Bacia Hidrográfica">
+                <option value="bacia_uso_2025">Uso do Solo na Bacia 2025</option>
+                <option value="bacia_uso_2012">Uso do Solo na Bacia 2012</option>
+                <option value="bacia_uso_1985">Uso do Solo na Bacia 1985</option>
+              </optgroup>
+              <optgroup label="Estrutura e Hidrografia">
+                <option value="drenagem">Rede de Drenagem</option>
+                <option value="bacia">Limite da Bacia</option>
+              </optgroup>
+            </select>
+            <input type="text" id="tableFilterInput" class="form-input" placeholder="Filtrar registros na tabela...">
+          </div>
+
+          <div class="table-records-counter" id="tableRecordsCounter">
+            Exibindo <span id="recCount">0</span> registros
+          </div>
+
+          <div class="table-scroll-container">
+            <table class="attributes-table" id="attributesTable">
+              <thead id="attrTableHead"></thead>
+              <tbody id="attrTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ABA 6: METADADOS & INFORMAÇÕES -->
+        <section class="tab-pane" id="tab-info">
+          <div class="pane-header">
+            <h3><i class="fa-solid fa-circle-info"></i> Metadados & Informações Técnicas</h3>
+            <p>Documentação e especificações cartográficas do projeto.</p>
+          </div>
+
+          <div class="info-content">
+            <!-- Nota Metodológica e Limitações -->
+            <div class="info-block methodological-notice-card">
+              <div class="notice-badge"><i class="fa-solid fa-triangle-exclamation"></i> Limitações do Estudo e Nota Metodológica</div>
+              <p class="notice-text">
+                Este geoportal foi desenvolvido para fins estritamente didáticos e demonstrativos. A análise de Uso e Cobertura da Terra utiliza a base de dados do MapBiomas (resolução espacial de 30m), derivada de imagens da série Landsat. Devido à escala e resolução espacial desses dados, podem ocorrer inconsistências ou falhas no mapeamento da cobertura vegetal e do solo em pequenas feições. Por essa razão, este produto não é indicado para delimitações ou diagnósticos de Áreas de Preservação Permanente (APP) em nível de detalhamento local/propriedade, sendo recomendado para análises de caráter regional e para o aprendizado de técnicas de geoprocessamento.
+              </p>
+            </div>
+
+            <!-- Realização e Parcerias Institucionais -->
+            <div class="info-block ufg-institution-card">
+              <div class="ufg-card-top">
+                <img src="assets/ufg_logo_white.svg" alt="UFG" class="ufg-card-logo" id="ufgInfoCardLogo">
+                <div>
+                  <h4 class="ufg-card-title">Universidade Federal de Goiás</h4>
+                  <span class="ufg-card-sub">UFG • Ensino, Pesquisa e Extensão</span>
+                </div>
+              </div>
+              <p>Instituição de ensino e pesquisa de excelência no Centro-Oeste brasileiro, promovendo a formação científica e a inovação tecnológica no estado de Goiás.</p>
+            </div>
+
+            <!-- LAPIG -->
+            <div class="info-block lapig-institution-card">
+              <div class="ufg-card-top">
+                <img src="assets/lapig_logo_white.svg" alt="LAPIG" class="lapig-card-logo" id="lapigInfoCardLogo">
+                <div>
+                  <h4 class="ufg-card-title">LAPIG • Sensoriamento Remoto e Geoprocessamento</h4>
+                  <span class="ufg-card-sub">IESA • Instituto de Estudos Socioambientais / UFG</span>
+                </div>
+              </div>
+              <p>Laboratório de referência nacional e internacional em geotecnologias, monitoramento biofísico, inventário de biomas e sistemas de informações geográficas aplicadas.</p>
+            </div>
+
+            <!-- GPC/UFG -->
+            <div class="info-block gpc-institution-card">
+              <div class="ufg-card-top">
+                <img src="assets/GPC_logo.jpg" alt="GPC/UFG" class="gpc-card-logo" id="gpcInfoCardLogo">
+                <div>
+                  <h4 class="ufg-card-title">GPC/UFG • Grupo de Pesquisa Cerrado</h4>
+                  <span class="ufg-card-sub">UFG • Pesquisa em Manejo, Restauração e Carbono</span>
+                </div>
+              </div>
+              <p>Grupo de pesquisa certificado pelo CNPq dedicado a estudos avançados de restauração ecológica, dinâmica de carbono, manejo florestal e conservação do bioma Cerrado.</p>
+            </div>
+
+            <div class="info-block">
+              <h4><i class="fa-solid fa-location-dot"></i> Área de Estudo</h4>
+              <p><strong>Bacia Hidrográfica do Ribeirão Abóbora</strong>, localizada no município de <strong>Rio Verde</strong>, Estado de Goiás, Região Centro-Oeste do Brasil.</p>
+              <p>Trata-se de importante manancial de abastecimento hídrico e recarga ambiental na bacia do Rio Paranaíba.</p>
+            </div>
+
+            <div class="info-block">
+              <h4><i class="fa-solid fa-compass"></i> Sistema de Referência Geodésico</h4>
+              <ul>
+                <li><strong>Datum Horizontal Original:</strong> SIRGAS 2000 (EPSG: 4674)</li>
+                <li><strong>Projeção Cartográfica:</strong> UTM Zona 22 Sul (EPSG: 31982)</li>
+                <li><strong>Visualização WebGIS:</strong> WGS 84 / Pseudo-Mercator (EPSG: 3857 / 4326)</li>
+              </ul>
+            </div>
+
+            <div class="info-block">
+              <h4><i class="fa-solid fa-shield-halved"></i> Áreas de Preservação Permanente (APPs)</h4>
+              <p>As faixas marginais de proteção dos cursos d'água foram delimitadas de acordo com os critérios da <strong>Lei Federal nº 12.651/2012</strong> (Novo Código Florestal Brasileiro).</p>
+            </div>
+
+            <div class="info-block">
+              <h4><i class="fa-solid fa-palette"></i> Classificação MapBiomas (cod_2015)</h4>
+              <p>As cores e códigos de uso da terra adotam rigorosamente o padrão MapBiomas contido no arquivo de estilo <code>cod_2015.qml</code>, garantindo padronização científica com a Coleção MapBiomas Brasil.</p>
+            </div>
+
+            <div class="info-block">
+              <h4><i class="fa-solid fa-download"></i> Download dos Dados Originais</h4>
+              <div class="download-section-title"><i class="fa-solid fa-layer-group"></i> Camadas de APP (Foco do Estudo)</div>
+              <div class="download-buttons-group">
+                <a href="APP_uso_de_cobertura_1985.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> APP 1985 (GeoJSON)</a>
+                <a href="APP_uso_de_cobertura_2012.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> APP 2012 (GeoJSON)</a>
+                <a href="APP_uso_de_cobertura_2025.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> APP 2025 (GeoJSON)</a>
+                <a href="delimitacao_APP.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> Delimitação APP (GeoJSON)</a>
+              </div>
+
+              <div class="download-section-title" style="margin-top: 10px;"><i class="fa-solid fa-mountain-sun"></i> Toda a Bacia Hidrográfica</div>
+              <div class="download-buttons-group">
+                <a href="uso_de_cobertura_RA_1985.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> Bacia 1985 (GeoJSON)</a>
+                <a href="uso_de_cobertura_RA_2012.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> Bacia 2012 (GeoJSON)</a>
+                <a href="uso_de_cobertura_RA_2025.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> Bacia 2025 (GeoJSON)</a>
+              </div>
+
+              <div class="download-section-title" style="margin-top: 10px;"><i class="fa-solid fa-compass"></i> Estrutura & Simbologia</div>
+              <div class="download-buttons-group">
+                <a href="drenagem_RA.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> Drenagem (GeoJSON)</a>
+                <a href="bacia_RA.geojson" download class="btn-download"><i class="fa-solid fa-file-arrow-down"></i> Limite da Bacia (GeoJSON)</a>
+                <a href="cod_2015.qml" download class="btn-download"><i class="fa-solid fa-file-code"></i> Estilo cod_2015 (QML)</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Botão para retrair/expandir a Sidebar -->
+      <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Recolher painel lateral">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+    </aside>
+
+    <!-- ÁREA DO MAPA (CANVAS) -->
+    <main class="map-viewport">
+      <div id="map" class="map-container"></div>
+
+      <!-- Barra de Ferramentas Flutuante no Mapa (Direita) -->
+      <div class="map-floating-tools">
+        <button class="tool-btn" id="btnZoomIn" title="Aproximar Zoom"><i class="fa-solid fa-plus"></i></button>
+        <button class="tool-btn" id="btnZoomOut" title="Afastar Zoom"><i class="fa-solid fa-minus"></i></button>
+        <button class="tool-btn" id="btnResetView" title="Centralizar na Bacia"><i class="fa-solid fa-house"></i></button>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" id="btnMeasureDist" title="Medir Distância (Linha)"><i class="fa-solid fa-ruler"></i></button>
+        <button class="tool-btn" id="btnMeasureArea" title="Medir Área (Polígono)"><i class="fa-solid fa-draw-polygon"></i></button>
+        <button class="tool-btn" id="btnClearDraw" title="Limpar Medições"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+
+      <!-- Caixa de Medição Ativa -->
+      <div class="measure-hud" id="measureHud" style="display: none;">
+        <div class="measure-hud-header">
+          <span id="measureHudTitle"><i class="fa-solid fa-ruler"></i> Medindo</span>
+          <button id="btnCloseMeasureHud"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="measure-hud-body">
+          <div class="measure-val" id="measureHudValue">0.00 m</div>
+          <div class="measure-instructions" id="measureHudInstructions">Clique no mapa para marcar pontos. Duplo clique para finalizar.</div>
+        </div>
+      </div>
+
+      <!-- Mini-Legenda Flutuante Rápida no Mapa -->
+      <div class="map-quick-legend" id="mapQuickLegend">
+        <div class="quick-leg-header" id="quickLegHeader">
+          <span><i class="fa-solid fa-layer-group"></i> Uso de cobertura</span>
+          <i class="fa-solid fa-chevron-down toggle-icon"></i>
+        </div>
+        <div class="quick-leg-body" id="quickLegBody">
+          <!-- Gerado via JS com os itens da camada de uso ativa -->
+        </div>
+      </div>
+
+      <!-- BARRA DE STATUS INFERIOR -->
+      <footer class="map-statusbar">
+        <div class="status-item coords-item">
+          <i class="fa-solid fa-location-crosshairs"></i>
+          <span>Lat: <strong id="lblLat">-17.82500°</strong></span>
+          <span>Lon: <strong id="lblLon">-51.02450°</strong></span>
+          <span class="utm-item">UTM 22S: X: <strong id="lblUtmX">500.000m</strong> | Y: <strong id="lblUtmY">8.029.000m</strong></span>
+        </div>
+
+        <div class="status-center">
+          <span class="status-badge" id="lblActiveLayerName"><i class="fa-solid fa-layer-group"></i> APP 2025</span>
+          <span class="status-badge" id="lblActiveBasemap"><i class="fa-solid fa-map"></i> 1. Google Híbrido</span>
+        </div>
+
+        <div class="status-right">
+          <span class="status-item"><i class="fa-solid fa-magnifying-glass"></i> Zoom: <strong id="lblZoomLevel">12</strong></span>
+          <span class="status-item credit-item">UFG • LAPIG • GPC • SIRGAS 2000 • MapBiomas</span>
+        </div>
+      </footer>
+    </main>
+
+  </div>
+
+  <!-- ==================== MODAL DE AJUDA & ATALHOS ==================== -->
+  <div class="modal-backdrop" id="helpModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-circle-question"></i> Guia do Geoportal WebGIS</h3>
+        <button class="modal-close-btn" id="btnCloseHelpModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <h4>Funcionalidades Principais:</h4>
+        <div class="help-feature-grid">
+          <div class="help-item">
+            <i class="fa-solid fa-shield-halved"></i>
+            <div>
+              <strong>Foco em APPs:</strong>
+              <p>Análise multitemporal das Áreas de Preservação Permanente (1985, 2012, 2025) com delimitação vetorial legal conforme o Código Florestal.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <i class="fa-solid fa-mountain-sun"></i>
+            <div>
+              <strong>Uso da Terra na Bacia Completa:</strong>
+              <p>Visualização contextual de toda a área da bacia hidrográfica (~198 km²) para compreender a matriz regional de ocupação da terra.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <i class="fa-solid fa-palette"></i>
+            <div>
+              <strong>Cores Oficiais MapBiomas:</strong>
+              <p>As cores do uso do solo seguem estritamente a padronização oficial salva em <code>cod_2015.qml</code>.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <i class="fa-solid fa-map"></i>
+            <div>
+              <strong>3 Mapas de Fundo:</strong>
+              <p>Imagens orbitais e relevo: 1. Google Híbrido, 2. Esri Imagem de Satélite e 3. Esri Topográfico.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <i class="fa-solid fa-circle-half-stroke"></i>
+            <div>
+              <strong>Modo Claro / Escuro (Dia & Noite):</strong>
+              <p>Alterne instantaneamente o tema de iluminação da interface no botão do cabeçalho com persistência automática.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <i class="fa-solid fa-ruler-combined"></i>
+            <div>
+              <strong>Medição Geodésica:</strong>
+              <p>Calcule extensões lineares e polígonos em hectares e km² com projeção esferoidal precisa via Turf.js.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <i class="fa-solid fa-chart-column"></i>
+            <div>
+              <strong>Estatísticas & Gráficos:</strong>
+              <p>Analise a evolução das classes de cobertura vegetal e antropização através de gráficos e tabelas.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnOkHelpModal">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ==================== SCRIPTS ==================== -->
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Turf.js para medições geodésicas de alta precisão -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <!-- Chart.js para dashboards e gráficos interativos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- html2canvas para exportação e captura de tela -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- Dados Vetoriais Pré-carregados (Garante funcionamento offline & sem erro CORS) -->
+  <script src="js/layers_data.js"></script>
+
+  <!-- Lógica Principal da Aplicação WebGIS -->
+  <script src="js/app.js"></script>
+</body>
+</html>
