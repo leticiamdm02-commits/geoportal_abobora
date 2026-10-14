@@ -33,8 +33,9 @@
   const BASEMAPS = {
     google_hybrid: {
       name: '1. Google Híbrido',
-      layer: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      layer: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         maxZoom: 20,
+        subdomains: ['0', '1', '2', '3'],
         attribution: '&copy; Google Maps'
       })
     },
@@ -129,6 +130,10 @@
     // Eventos de clique para medição
     appState.map.on('click', onMapClickMeasure);
     appState.map.on('dblclick', onMapDblClickMeasure);
+
+    // Garante que o Leaflet calcule a área de exibição e carregue os tiles imediatamente
+    setTimeout(() => { if (appState.map) appState.map.invalidateSize(); }, 120);
+    setTimeout(() => { if (appState.map) appState.map.invalidateSize(); }, 500);
   }
 
   // =========================================================================
@@ -179,15 +184,16 @@
   // 6. CRIAÇÃO DAS CAMADAS VETORIAIS COM ESTILOS
   // =========================================================================
   function createVectorLayers() {
-    // 1. Limite da Bacia Hidrográfica (Linha fina e discreta)
+    // 1. Limite da Bacia Hidrográfica (Linha vermelha viva, grossa e nítida - destaque total)
     if (appState.layerData.bacia) {
       appState.layers.bacia = L.geoJSON(appState.layerData.bacia, {
         style: {
-          color: '#64748b',
-          weight: 1.1,
-          dashArray: '4, 4',
-          fillColor: '#0284c7',
-          fillOpacity: 0.02
+          color: '#ff0000',
+          weight: 4.0,
+          dashArray: null,
+          opacity: 1.0,
+          fillColor: '#ef4444',
+          fillOpacity: 0.04
         },
         onEachFeature: function (feature, layer) {
           const props = feature.properties || {};
@@ -414,7 +420,8 @@
       }).addTo(appState.map);
     }
 
-    // Garante ordem correta de sobreposição: hidrografia e borda de APP no topo
+    // Garante ordem correta de sobreposição: limite da bacia, hidrografia e borda de APP no topo
+    if (appState.layers.bacia) appState.layers.bacia.bringToFront();
     if (appState.layers.delimitacao_app) appState.layers.delimitacao_app.bringToFront();
     if (appState.layers.drenagem) appState.layers.drenagem.bringToFront();
 
@@ -659,10 +666,15 @@
   // Mini-legenda rápida no canto inferior esquerdo do mapa
   function updateQuickLegend() {
     const body = document.getElementById('quickLegBody');
+    if (!body) return;
     body.innerHTML = '';
 
     const data = appState.layerData[`app_${appState.activeYear}`];
     if (!data || !data.features) return;
+
+    const isLight = document.body.classList.contains('light-theme');
+    const nameColor = isLight ? '#0f172a' : '#f8fafc';
+    const areaColor = isLight ? '#334155' : '#94a3b8';
 
     const classStats = {};
     data.features.forEach(f => {
@@ -676,16 +688,13 @@
       if (!mb) return;
 
       const row = document.createElement('div');
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.justifyContent = 'space-between';
-      row.style.gap = '8px';
+      row.className = 'quick-leg-item';
       row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="width:10px;height:10px;background:${mb.color};border-radius:2px;display:inline-block;"></span>
-          <span style="font-size:10px;color:#fff;">${mb.name}</span>
+        <div class="quick-leg-left">
+          <span class="quick-leg-color" style="background:${mb.color};"></span>
+          <span class="quick-leg-name" style="color:${nameColor} !important; font-weight:600;">${mb.name}</span>
         </div>
-        <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;">${classStats[dn].toFixed(1)} ha</span>
+        <span class="quick-leg-area" style="color:${areaColor} !important; font-weight:600;">${classStats[dn].toFixed(1)} ha</span>
       `;
       body.appendChild(row);
     });
@@ -750,22 +759,93 @@
   }
 
   function initChart() {
-    const ctx = document.getElementById('temporalChart').getContext('2d');
-    updateChart('bar');
+    const sel = document.getElementById('chartTypeSelect');
+    updateChart(sel ? sel.value : 'bar_2025');
   }
 
   function updateChart(type) {
+    if (!type) type = 'bar_2025';
     const stats = getStatsPerYear();
-    const ctx = document.getElementById('temporalChart').getContext('2d');
+    const canvas = document.getElementById('temporalChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
     if (appState.chartInstance) {
       appState.chartInstance.destroy();
     }
 
-    if (type === 'bar') {
-      // Comparativo de barras entre anos
-      const dns = [3, 11, 15, 21, 33, 39]; // Classes principais
-      const labels = dns.map(dn => MAPBIOMAS[dn]?.name || dn);
+    const isLight = document.body.classList.contains('light-theme');
+    const textColor = isLight ? '#0f172a' : '#f8fafc';
+    const textMuted = isLight ? '#475569' : '#94a3b8';
+    const gridColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.06)';
+
+    if (type.startsWith('bar_') && type !== 'bar_compare') {
+      // Gráfico de Barras com uma cor específica oficial do MapBiomas para cada uso do solo
+      const year = type.split('_')[1] || '2025';
+      const yrStats = stats[year] || {};
+      const sortedDns = Object.keys(yrStats).map(Number).sort((a, b) => (yrStats[b] || 0) - (yrStats[a] || 0));
+      const totalHa = Object.values(yrStats).reduce((acc, v) => acc + v, 0) || 1;
+
+      const labels = sortedDns.map(dn => MAPBIOMAS[dn]?.name || `Classe ${dn}`);
+      const dataValues = sortedDns.map(dn => Number((yrStats[dn] || 0).toFixed(2)));
+      const colors = sortedDns.map(dn => MAPBIOMAS[dn]?.color || '#94a3b8');
+
+      appState.chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: `Área em APP ${year} (ha)`,
+            data: dataValues,
+            backgroundColor: colors,
+            borderColor: colors,
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y', // Barras horizontais para visualização impecável dos nomes de uso
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const val = context.raw || 0;
+                  const pct = ((val / totalHa) * 100).toFixed(1);
+                  return `Área: ${val.toFixed(2)} ha (${pct}%)`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: textMuted, font: { family: 'Inter', size: 9 } },
+              grid: { color: gridColor },
+              title: { display: true, text: 'Área em Hectares (ha)', color: textMuted, font: { size: 10 } }
+            },
+            y: {
+              ticks: { color: textColor, font: { family: 'Inter', size: 10, weight: '600' } },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    } else if (type === 'bar_compare' || type === 'bar') {
+      // Comparativo Multitemporal entre Anos (1985 x 2012 x 2025)
+      const allDns = new Set([
+        ...Object.keys(stats[1985]),
+        ...Object.keys(stats[2012]),
+        ...Object.keys(stats[2025])
+      ]);
+      const sortedDns = Array.from(allDns).map(Number).sort((a, b) => {
+        const sumB = (stats[2025][b] || 0) + (stats[2012][b] || 0) + (stats[1985][b] || 0);
+        const sumA = (stats[2025][a] || 0) + (stats[2012][a] || 0) + (stats[1985][a] || 0);
+        return sumB - sumA;
+      }).slice(0, 7);
+
+      const labels = sortedDns.map(dn => MAPBIOMAS[dn]?.name || dn);
 
       appState.chartInstance = new Chart(ctx, {
         type: 'bar',
@@ -774,18 +854,21 @@
           datasets: [
             {
               label: '1985 (ha)',
-              data: dns.map(dn => stats[1985][dn] || 0),
-              backgroundColor: '#94a3b8'
+              data: sortedDns.map(dn => Number((stats[1985][dn] || 0).toFixed(2))),
+              backgroundColor: '#94a3b8',
+              borderRadius: 3
             },
             {
               label: '2012 (ha)',
-              data: dns.map(dn => stats[2012][dn] || 0),
-              backgroundColor: '#38bdf8'
+              data: sortedDns.map(dn => Number((stats[2012][dn] || 0).toFixed(2))),
+              backgroundColor: '#38bdf8',
+              borderRadius: 3
             },
             {
               label: '2025 (ha)',
-              data: dns.map(dn => stats[2025][dn] || 0),
-              backgroundColor: '#10b981'
+              data: sortedDns.map(dn => Number((stats[2025][dn] || 0).toFixed(2))),
+              backgroundColor: '#10b981',
+              borderRadius: 3
             }
           ]
         },
@@ -794,17 +877,17 @@
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              labels: { color: '#f8fafc', font: { family: 'Inter', size: 10 } }
+              labels: { color: textColor, font: { family: 'Inter', size: 10 } }
             }
           },
           scales: {
             x: {
-              ticks: { color: '#94a3b8', font: { size: 9 } },
-              grid: { color: 'rgba(255,255,255,0.05)' }
+              ticks: { color: textMuted, font: { size: 9 } },
+              grid: { color: gridColor }
             },
             y: {
-              ticks: { color: '#94a3b8', font: { size: 9 } },
-              grid: { color: 'rgba(255,255,255,0.05)' }
+              ticks: { color: textMuted, font: { size: 9 } },
+              grid: { color: gridColor }
             }
           }
         }
@@ -821,7 +904,7 @@
           datasets: [{
             data: sortedDns.map(dn => (yrStats[dn] || 0).toFixed(2)),
             backgroundColor: sortedDns.map(dn => MAPBIOMAS[dn]?.color || '#999'),
-            borderColor: '#1e293b',
+            borderColor: isLight ? '#ffffff' : '#1e293b',
             borderWidth: 2
           }]
         },
@@ -831,7 +914,7 @@
           plugins: {
             legend: {
               position: 'right',
-              labels: { color: '#f8fafc', font: { size: 9 } }
+              labels: { color: textColor, font: { size: 9 } }
             }
           }
         }
@@ -927,11 +1010,20 @@
     if (ufgHeaderLogo) ufgHeaderLogo.src = ufgSrc;
     if (ufgInfoLogo) ufgInfoLogo.src = ufgSrc;
 
-    const lapigHeaderLogo = document.getElementById('lapigHeaderLogo');
-    const lapigInfoLogo = document.getElementById('lapigInfoCardLogo');
-    const lapigSrc = isLight ? 'assets/lapig_logo_dark.svg' : 'assets/lapig_logo_white.svg';
+    const lapigLogoDark = 'assets/lapig_logo_dark.svg';
+    const lapigLogoWhite = 'assets/lapig_logo_white.svg';
+    const lapigSrc = isLight ? lapigLogoDark : lapigLogoWhite;
     if (lapigHeaderLogo) lapigHeaderLogo.src = lapigSrc;
     if (lapigInfoLogo) lapigInfoLogo.src = lapigSrc;
+
+    // Atualiza a legenda rápida flutuante no mapa com as cores adequadas ao tema
+    updateQuickLegend();
+
+    // Re-renderiza o gráfico para adaptar cores de texto, eixos e grades ao tema
+    const chartSel = document.getElementById('chartTypeSelect');
+    if (chartSel && appState.chartInstance) {
+      updateChart(chartSel.value);
+    }
   }
 
   // =========================================================================
@@ -1318,6 +1410,14 @@
         if (tabId === 'tab-stats' && appState.chartInstance) {
           appState.chartInstance.resize();
         }
+
+        // Garante que o mapa redimensione perfeitamente ao trocar de abas
+        setTimeout(() => {
+          if (appState.map) appState.map.invalidateSize();
+          if (appState.layers.bacia && appState.map.hasLayer(appState.layers.bacia)) {
+            appState.layers.bacia.bringToFront();
+          }
+        }, 60);
       });
     });
 
@@ -1354,10 +1454,28 @@
     document.getElementById('btnZoomIn').addEventListener('click', () => appState.map.zoomIn());
     document.getElementById('btnZoomOut').addEventListener('click', () => appState.map.zoomOut());
 
-    // Checkboxes das Camadas (APPs, Bacia Completa, Drenagem e Limites)
+    // Sincronização entre as abas Bacia Completa e Camadas APP para o Limite da Bacia
+    const chkBacia1 = document.getElementById('chk_bacia');
+    const chkBacia2 = document.getElementById('chk_bacia_app');
+    function syncBaciaToggle(checked) {
+      if (chkBacia1) chkBacia1.checked = checked;
+      if (chkBacia2) chkBacia2.checked = checked;
+      if (appState.layers.bacia) {
+        if (checked) {
+          appState.layers.bacia.addTo(appState.map);
+          appState.layers.bacia.bringToFront();
+        } else {
+          appState.map.removeLayer(appState.layers.bacia);
+        }
+      }
+    }
+    if (chkBacia1) chkBacia1.addEventListener('change', e => syncBaciaToggle(e.target.checked));
+    if (chkBacia2) chkBacia2.addEventListener('change', e => syncBaciaToggle(e.target.checked));
+
+    // Checkboxes das outras Camadas (APPs, Drenagem, Solo Bacia)
     [
       'app_1985', 'app_2012', 'app_2025', 
-      'delimitacao_app', 'drenagem', 'bacia', 
+      'delimitacao_app', 'drenagem', 
       'bacia_uso_1985', 'bacia_uso_2012', 'bacia_uso_2025'
     ].forEach(key => {
       const chk = document.getElementById(`chk_${key}`);
@@ -1385,14 +1503,31 @@
       });
     });
 
-    // Sliders de Opacidade Individuais
+    // Sincronização dos Sliders de Opacidade do Limite da Bacia
+    const sBacia1 = document.getElementById('slider_op_bacia');
+    const sBacia2 = document.getElementById('slider_op_bacia_app');
+    const lblBacia1 = document.getElementById('lbl_op_bacia');
+    const lblBacia2 = document.getElementById('lbl_op_bacia_app');
+    function syncBaciaOpacitySlider(val) {
+      if (sBacia1) sBacia1.value = val;
+      if (sBacia2) sBacia2.value = val;
+      if (lblBacia1) lblBacia1.textContent = `${val}%`;
+      if (lblBacia2) lblBacia2.textContent = `${val}%`;
+      const op = val / 100;
+      if (appState.layers.bacia) {
+        appState.layers.bacia.setStyle({ opacity: op, fillOpacity: op * 0.04, color: '#ff0000', weight: 4.0 });
+      }
+    }
+    if (sBacia1) sBacia1.addEventListener('input', e => syncBaciaOpacitySlider(Number(e.target.value)));
+    if (sBacia2) sBacia2.addEventListener('input', e => syncBaciaOpacitySlider(Number(e.target.value)));
+
+    // Sliders de Opacidade Individuais das outras camadas
     [
       { slider: 'slider_op_2025', lbl: 'lbl_op_2025', layer: 'app_2025' },
       { slider: 'slider_op_2012', lbl: 'lbl_op_2012', layer: 'app_2012' },
       { slider: 'slider_op_1985', lbl: 'lbl_op_1985', layer: 'app_1985' },
       { slider: 'slider_op_delimitacao_app', lbl: 'lbl_op_delimitacao_app', layer: 'delimitacao_app' },
       { slider: 'slider_op_drenagem', lbl: 'lbl_op_drenagem', layer: 'drenagem' },
-      { slider: 'slider_op_bacia', lbl: 'lbl_op_bacia', layer: 'bacia' },
       { slider: 'slider_op_bacia_uso_2025', lbl: 'lbl_op_bacia_uso_2025', layer: 'bacia_uso_2025' },
       { slider: 'slider_op_bacia_uso_2012', lbl: 'lbl_op_bacia_uso_2012', layer: 'bacia_uso_2012' },
       { slider: 'slider_op_bacia_uso_1985', lbl: 'lbl_op_bacia_uso_1985', layer: 'bacia_uso_1985' }
@@ -1409,8 +1544,6 @@
               appState.layers[item.layer].setStyle({ opacity: op });
             } else if (item.layer === 'delimitacao_app') {
               appState.layers[item.layer].setStyle({ opacity: op });
-            } else if (item.layer === 'bacia') {
-              appState.layers[item.layer].setStyle({ opacity: op, fillOpacity: op * 0.05 });
             } else {
               appState.layers[item.layer].setStyle({ fillOpacity: op, opacity: Math.min(1, op + 0.1) });
             }
@@ -1506,6 +1639,19 @@
     initMap();
     setupEventListeners();
     loadAllLayers();
+  });
+
+  window.addEventListener('load', () => {
+    if (appState.map) {
+      appState.map.invalidateSize();
+      if (appState.layers.bacia && appState.map.hasLayer(appState.layers.bacia)) {
+        appState.layers.bacia.bringToFront();
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (appState.map) appState.map.invalidateSize();
   });
 
 })();
