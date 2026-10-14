@@ -1010,6 +1010,8 @@
     if (ufgHeaderLogo) ufgHeaderLogo.src = ufgSrc;
     if (ufgInfoLogo) ufgInfoLogo.src = ufgSrc;
 
+    const lapigHeaderLogo = document.getElementById('lapigHeaderLogo');
+    const lapigInfoLogo = document.getElementById('lapigInfoCardLogo');
     const lapigLogoDark = 'assets/lapig_logo_dark.svg';
     const lapigLogoWhite = 'assets/lapig_logo_white.svg';
     const lapigSrc = isLight ? lapigLogoDark : lapigLogoWhite;
@@ -1634,12 +1636,18 @@
   // =========================================================================
   // 20. INICIALIZAÇÃO GERAL
   // =========================================================================
-  window.addEventListener('DOMContentLoaded', () => {
+  function startGeoportal() {
     initTheme();
     initMap();
     setupEventListeners();
     loadAllLayers();
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startGeoportal);
+  } else {
+    startGeoportal();
+  }
 
   window.addEventListener('load', () => {
     if (appState.map) {
