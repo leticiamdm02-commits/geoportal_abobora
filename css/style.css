@@ -1480,8 +1480,8 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  min-width: 290px;
-  max-width: 360px;
+  min-width: 250px;
+  max-width: 320px;
   overflow: hidden;
   transition: var(--transition);
 }
@@ -1503,8 +1503,8 @@ html, body {
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  max-height: 420px;
+  gap: 6px;
+  max-height: 360px;
   overflow-y: auto;
   font-size: 11px;
 }
@@ -1512,9 +1512,8 @@ html, body {
 .quick-leg-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 2px 0;
+  gap: 8px;
+  padding: 3px 0;
 }
 
 .quick-leg-left {

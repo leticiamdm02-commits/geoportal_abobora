@@ -346,16 +346,16 @@
       }
     });
 
-    // 4. Delimitação das APPs (Borda fina e discreta)
+    // 4. Delimitação das APPs (Linha tracejada verde com espessura mais nítida e visível)
     if (appState.layerData.delimitacao_app) {
       appState.layers.delimitacao_app = L.geoJSON(appState.layerData.delimitacao_app, {
         style: {
           color: '#059669',
-          weight: 0.9,
-          dashArray: '3, 3',
+          weight: 2.2,
+          dashArray: '5, 4',
           fillColor: 'transparent',
           fillOpacity: 0.0,
-          opacity: 0.85
+          opacity: 0.95
         },
         onEachFeature: function (feature, layer) {
           layer.bindPopup(`
@@ -550,17 +550,8 @@
     const list = document.getElementById('legendItemsList');
     list.innerHTML = '';
 
-    // Coleta as classes presentes nos dados
-    const presentDNs = new Set();
-    ['1985', '2012', '2025'].forEach(yr => {
-      const data = appState.layerData[`app_${yr}`];
-      if (data && data.features) {
-        data.features.forEach(f => presentDNs.add(Number(f.properties.DN)));
-      }
-    });
-
-    // Ordena as classes
-    const sortedDNs = Array.from(presentDNs).sort((a, b) => a - b);
+    // Lista todas as classes de uso do solo da classificação oficial MapBiomas
+    const sortedDNs = Object.keys(MAPBIOMAS).map(Number).sort((a, b) => a - b);
 
     sortedDNs.forEach(dn => {
       const mb = MAPBIOMAS[dn];
@@ -663,27 +654,19 @@
     }
   }
 
-  // Mini-legenda rápida no canto inferior esquerdo do mapa
+  // Mini-legenda rápida no canto inferior esquerdo do mapa (Todos os usos de solo, sem hectares)
   function updateQuickLegend() {
     const body = document.getElementById('quickLegBody');
     if (!body) return;
     body.innerHTML = '';
 
-    const data = appState.layerData[`app_${appState.activeYear}`];
-    if (!data || !data.features) return;
-
     const isLight = document.body.classList.contains('light-theme');
     const nameColor = isLight ? '#0f172a' : '#f8fafc';
-    const areaColor = isLight ? '#334155' : '#94a3b8';
 
-    const classStats = {};
-    data.features.forEach(f => {
-      const dn = Number(f.properties.DN);
-      const ha = Number(f.properties.area_ha || 0);
-      classStats[dn] = (classStats[dn] || 0) + ha;
-    });
+    // Lista todas as classes de uso do solo da classificação oficial MapBiomas
+    const dns = Object.keys(MAPBIOMAS).map(Number).sort((a, b) => a - b);
 
-    Object.keys(classStats).sort((a, b) => classStats[b] - classStats[a]).forEach(dn => {
+    dns.forEach(dn => {
       const mb = MAPBIOMAS[dn];
       if (!mb) return;
 
@@ -694,7 +677,6 @@
           <span class="quick-leg-color" style="background:${mb.color};"></span>
           <span class="quick-leg-name" style="color:${nameColor} !important; font-weight:600;">${mb.name}</span>
         </div>
-        <span class="quick-leg-area" style="color:${areaColor} !important; font-weight:600;">${classStats[dn].toFixed(1)} ha</span>
       `;
       body.appendChild(row);
     });
@@ -1017,6 +999,15 @@
     const lapigSrc = isLight ? lapigLogoDark : lapigLogoWhite;
     if (lapigHeaderLogo) lapigHeaderLogo.src = lapigSrc;
     if (lapigInfoLogo) lapigInfoLogo.src = lapigSrc;
+
+    // Altera logo do GPC com alto contraste: texto branco puro no escuro e selo nítido no claro
+    const gpcHeaderLogo = document.getElementById('gpcHeaderLogo');
+    const gpcInfoLogo = document.getElementById('gpcInfoCardLogo');
+    const gpcLogoDark = 'assets/GPC_logo_dark.png';
+    const gpcLogoLight = 'assets/GPC_logo_light.png';
+    const gpcSrc = isLight ? gpcLogoLight : gpcLogoDark;
+    if (gpcHeaderLogo) gpcHeaderLogo.src = gpcSrc;
+    if (gpcInfoLogo) gpcInfoLogo.src = gpcSrc;
 
     // Atualiza a legenda rápida flutuante no mapa com as cores adequadas ao tema
     updateQuickLegend();
@@ -1545,7 +1536,7 @@
             if (item.layer === 'drenagem') {
               appState.layers[item.layer].setStyle({ opacity: op });
             } else if (item.layer === 'delimitacao_app') {
-              appState.layers[item.layer].setStyle({ opacity: op });
+              appState.layers[item.layer].setStyle({ opacity: op, weight: 2.2, color: '#059669', dashArray: '5, 4' });
             } else {
               appState.layers[item.layer].setStyle({ fillOpacity: op, opacity: Math.min(1, op + 0.1) });
             }
